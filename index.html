@@ -319,9 +319,14 @@ priors$MODE = 0;
 <pre><code class="r">EQUIV &lt;- c(3, 3)
 </code></pre>
 
-<p>The following code snippet reads the source code and estimates the MMPP model.  Note that the events matrix is not currently used in the code, but is a placeholder for future plotting features.</p>
+<p>The following code snippet reads the source code, downloads the building data, and estimates the MMPP model.  Note that the events matrix is not currently used in the code, but is a placeholder for future plotting features.</p>
 
 <pre><code>source(&quot;/your_directory_here/MMPP.R&quot;)
+data&lt;-read.table(&quot;http://archive.ics.uci.edu/ml/machine-learning-databases
+/event-detection/CalIt2.data&quot;,sep=&quot;,&quot;)
+#creates the entry count matrix from tabular data
+N&lt;-matrix(data$V4[data$V1==7],nrow=48)
+events&lt;-NULL
 samples &lt;- sensorMMPP(N, priors, c(50, 10, 1), events, c(3, 3))
 </code></pre>
 
