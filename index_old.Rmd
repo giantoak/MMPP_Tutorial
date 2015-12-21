@@ -2,36 +2,39 @@
 title       : Detecting Events with Markov Modulated Poisson Processes
 subtitle    : <img src="assets/img/Giant_Oak_logo_v2B.jpg" width="180" height="240">
 author      : W. Graham Mueller
-job         : 
+job         :
 framework   : minimal     # {io2012, html5slides, shower, dzslides, ...}
-hitheme     : tomorrow      # 
+hitheme     : tomorrow      #
 widgets     : [mathjax]            # {mathjax, quiz, bootstrap}
 mode        : standalone # {standalone, draft}
 ---
 
-The following is based on series of papers:  Learning to Detect Events with Markov-Modulated Poisson Processes by A. Ihler, J. Hutchins, and P. Smyth, Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process by S. Scott, and The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling by S. Scott and P. Smyth.
+The following is based on three papers:
+* [Learning to Detect Events with Markov-Modulated Poisson Processes](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.87.3348) by A. Ihler, J. Hutchins, and P. Smyth
+* [Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.26.8659) by S. Scott
+* [The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling](http://www.datalab.uci.edu/papers/ScottSmythV7.pdf) by S. Scott and P. Smyth.
 
 This R-implementation is based on the Matlab code provided by J.Hutchins.
 
-The dataset used for this tutorial is available on the UCI Machine Learning Repository <a href="http://archive.ics.uci.edu/ml/datasets/CalIt2+Building+People+Counts">here</a>.
+The dataset used for this tutorial is available on the UCI Machine Learning Repository [here.](http://archive.ics.uci.edu/ml/datasets/CalIt2+Building+People+Counts)
 
 ---
 
 # When and why should I use a Markov-Modulated Poisson Process?
 
-Time-series of count data occur in many different contexts.  A Markov-modulated Poisson process provides a framework for detecting anamoulous events using an unsupervised learning approach and has several advantages compared to typical Poisson models.
+Time-series of count data occur in many different contexts.  A Markov-modulated Poisson process provides a framework for detecting anomalous events using an unsupervised learning approach and has several advantages compared to typical Poisson models.
 
-The following figure shows three weeks of entry count data recorded every 30 minutes by an optical sensor placed at the main doors of the Callt2 institute building on the UC-Irvine campus. These observations are noisy time series with obvious structure which are corrupted by non-periodic events.  Some events may be obvious such as the large spike on the second Thursday in the plot below, others may only be noticeable when compared to the average behavior at given time over a long period.
+The following figure shows three weeks of entry count data recorded every 30 minutes by an optical sensor placed at the main doors of the [Calit2 Institute building](http://www.calit2.uci.edu/calit2-building/default.aspx?cguid=7CE08025-DA82-4BF8-A57B-2F16D8C7592C) on the UC-Irvine campus. These observations are noisy time series with obvious structure which are corrupted by non-periodic events.  Some events, such as the large spike on the second Thursday in the plot below, may be obvious; others may only be noticeable when compared to the average behavior at given time over a long period.
 
-<center><img src="assets/img/exit_count.png"></center>
+<center>![Plot of Entry Data](assets/img/exit_count.png)</center>
 
 If your data is close to Poisson, the Markov-modulated Poisson process has several advantages over estimating a non-homogenous poisson process and detecting events by finding counts with low probability under the estimated model, (\(P(N;\hat{\lambda}(t)) < \epsilon\)).
 
-1.  The presence of outliers causes bias in the estimated rate of average behavior.
-2.  Sustained events with slight changes may not be detected with a constant probability threshold.
-3.  Difficulty in determining the duration of events.
+1. The presence of outliers causes bias in the estimated rate of average behavior.
+2. Sustained events with slight changes may not be detected with a constant probability threshold.
+3. Difficulty in determining the duration of events.
 
-If you believe your data contains events which are relatively rare and interspersed amoung non-event observations and any event causes a dramatic change in activity, a simple non-homogeneous poisson process model will likely suffice.  Otherwise, the MMPP will likely perform significantly better in terms of detection accuracy.
+If you believe your data contains events which are relatively rare and interspersed among non-event observations and any event causes a dramatic change in activity, a simple non-homogeneous poisson process model will likely suffice.  Otherwise, the MMPP will likely perform significantly better in terms of detection accuracy.
 
 ---
 
@@ -40,13 +43,13 @@ If you believe your data contains events which are relatively rare and intersper
 
 If your data follows a Poisson process, the probability of observing $N$ events at any time is given by the following:  
 
-<center>
+<!-- <center> -->
 $P(N;\lambda)=e^{-\lambda}\lambda^N/N!$
-</center>
+<!-- </center> -->
 
-The population mean and variance are both equal to $\lambda$.  There are several goodness of fit tests available to test the Poisson distribution assumption.  However, given that the data may be contaminated by bursts of events and the fact that limited observations at each day-time slice may be a problem, a qualitative assement of the suitability of the Poisson assumption is reasonable and can be obtained by examining the relationship between the mean and variance of observations.
+The population mean and variance are both equal to $\lambda$.  There are several goodness of fit tests available to test the Poisson distribution assumption.  However, given that the data may be contaminated by bursts of events and the fact that limited observations at each day-time slice may be a problem, a qualitative assessment of the suitability of the Poisson assumption is reasonable and can be obtained by examining the relationship between the mean and variance of observations.
 
-![plot of chunk unnamed-chunk-1](assets/fig/unnamed-chunk-3.png) 
+![Plot of chunk unnamed-chunk-1](assets/fig/unnamed-chunk-3.png)
 
 
 The mean and variance plots indicate that after the removal of observations affected by events, the Poisson assumption seems reasonable.
@@ -54,9 +57,9 @@ The mean and variance plots indicate that after the removal of observations affe
 
 ---
 
-As motivation for the proposed model, consider the scatterplot of the number of individuals entering the building on any weekday as function of every 30-minute interval.  There is obvious periodic behavior as well as several patches of outliers.  However, in some cases it is not so obvious as to whether observations are due to an external event or just unusual noise.  In order to separate the these scenarios, Ihler, et al defined the model described in the next section.
+As motivation for the proposed model, consider the scatterplot of the number of individuals entering the building on any weekday as function of every 30-minute interval.  There is obvious periodic behavior as well as several patches of outliers.  However, in some cases it is not so obvious as to whether observations are due to an external event or just unusual noise.  In order to separate the these scenarios, Ihler et al. defined the model described in the next section.
 
-![plot of chunk unnamed-chunk-2](assets/fig/img2.png) 
+![Plot of chunk unnamed-chunk-2](assets/fig/img2.png)
 
 ## Markov-Modulated Poisson Process
 
@@ -64,19 +67,20 @@ The main assumption underlying the Markov-Modulated Poisson Process is that obse
 
 <center>$N(t) = N_0(t) + N_E(t)$</center>
 
-In order to model the predictable and periodic behavior seen in the above figure, the proposed model for $N_0(t)$ is a nonhomogenous Poisson process with a particular parametrization of the rate function.
+In order to model the predictable and periodic behavior seen in the above figure, the proposed model for $N_0(t)$ is a non-homogenous Poisson process with a particular parametrization of the rate function.
 
-<center>
-$\lambda(t) = \lambda_0 \delta_{d(t)} \eta_{d(t),h(t)}$
-</center>
+<!--<center>-->
+$$\lambda(t) = \lambda_0 \delta_{d(t)} \eta_{d(t),h(t)}$$
+<!--</center>-->
 
 $d(t) \in [1,2,3,4,5,6,7]$ and $h(t)$ indicates the time interval $t$, such as every 30 minutes, etc.  The parameters $\delta$ and $\eta$ must meet the following criteria:
 
-<center>
-$$\sum_{i=1}^N \delta_i = 7$$<br>
+<!--<center>-->
+$$\sum_{i=1}^N \delta_i = 7$$
 $$\sum_{j=1}^D \eta_{i,j} = D$$
-</center>
-Where D is the number of time intervals in one day (e.g. 24 for one hour intervals,48 for 30 minute intervals)
+<!--</center>-->
+
+Where D is the number of time intervals in one day (e.g. 24 for one hour intervals, 48 for 30 minute intervals)
 
 ---
 
@@ -84,36 +88,36 @@ Where D is the number of time intervals in one day (e.g. 24 for one hour interva
 
 To model the behavior of anomalous periods of time, we use a ternary process $z(t)$ to indicate the presence of an event and its type:
 
-<center>
-\[
-z(t) = 
+<!--<center>-->
+$$\[
+z(t) =
      \begin{array}{lr}
        0 & \textrm{no event at time t}\\
        +1 & \textrm{positive event at time t}\\
        -1 & \textrm{negative event at time t}\\
-     \end{array} 
-\]
-</center>
+     \end{array}
+\]$$
+<!--</center>-->
 
-<center>
-\(M_z = \left( \begin{array}{ccc}
+<!--<center>-->
+$$\(M_z = \left( \begin{array}{ccc}
 z_{00} & z_{0+} & z_{0-} \\
 z_{+0} & z_{++} & z_{+-} \\
-z_{-0} & z_{-+} & z_{--} \end{array} \right)\)
-</center>
+z_{-0} & z_{-+} & z_{--} \end{array} \right)\)$$
+<!--</center>-->
 
 
-The transition probability variables priors specified as 
+The transition probability variables priors specified as
 
-<center>
-\(z_{00},z_{0+},z_{0-} \sim Dir(z; [a_{00}^Z,a_{0+}^Z,a_{0-}^Z])\)
-</center>
+<!--<center>-->
+$$\(z_{00},z_{0+},z_{0-} \sim Dir(z; [a_{00}^Z,a_{0+}^Z,a_{0-}^Z])\)$$
+<!--</center>-->
 
 where Dir is the Dirichlet distribution and the $a_{0\cdot}^Z$ are hyperparameters.  Given an event \(z(t)\neq 1\), the increase or decrease in observation counts, \(N_E(t)\), is modeled as Poisson with rate \(\gamma (t)\) where  \(\gamma (t)\) is assumed to be independently distributed as the Gamma distribution with hyperparameters $a^E$ and $b^E$.
 
-<center>
-\(\gamma (t) \sim \Gamma(\gamma;a^E,b^E) \)
-</center>
+<!--<center>-->
+$$\(\gamma (t) \sim \Gamma(\gamma;a^E,b^E) \)$$
+<!--</center>-->
 
 Markov modulated Poisson processes may be relatively sensitive to the selection of prior distributions and hence the choice of hyperparameters.  However, given an idea of what constitutes a "rare" event, how often they occur, and the expected duration of such an event relatively strong priors can avoid overexplanation of the data.
 
@@ -393,10 +397,8 @@ L_mean<-melt(L_mean)
 ```
 
 
-![plot of chunk unnamed-chunk-2](assets/fig/unnamed-chunk-2.png) 
+![plot of chunk unnamed-chunk-2](assets/fig/unnamed-chunk-2.png)
 
 
 
 ---
-
-
