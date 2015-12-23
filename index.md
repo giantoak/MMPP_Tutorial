@@ -16,7 +16,7 @@ The following tutorial is based on three papers:
 * [Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.26.8659) by S. Scott
 * [The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling](http://www.datalab.uci.edu/papers/ScottSmythV7.pdf) by S. Scott and P. Smyth.
 
-This R-implementation is based on the Matlab code provided by J.Hutchins.
+This [R](https://www.r-project.org/) implementation is based on the Matlab code provided by J.Hutchins.
 
 The dataset used for this tutorial is available on the UCI Machine Learning Repository [here.](http://archive.ics.uci.edu/ml/datasets/CalIt2+Building+People+Counts)
 
