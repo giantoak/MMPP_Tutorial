@@ -1,0 +1,427 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>MMPP Tutorial by giantoak</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>MMPP Tutorial</h1>
+        <p>A review of Markov Modulated Poisson Processes (MMPPs) and a simple tutorial for the MMPP R module</p>
+
+        <p class="view"><a href="https://github.com/giantoak/MMPP_Tutorial">View the Project on GitHub <small>giantoak/MMPP_Tutorial</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/giantoak/MMPP_Tutorial/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/giantoak/MMPP_Tutorial/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/giantoak/MMPP_Tutorial">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p>The following tutorial is based on three papers:</p>
+
+<ul>
+<li>
+<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.87.3348">Learning to Detect Events with Markov-Modulated Poisson Processes</a> by A. Ihler, J. Hutchins, and P. Smyth</li>
+<li>
+<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.26.8659">Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process</a> by S. Scott</li>
+<li>
+<a href="http://www.datalab.uci.edu/papers/ScottSmythV7.pdf">The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling</a> by S. Scott and P. Smyth.</li>
+</ul>
+
+<p>This R-implementation is based on the Matlab code provided by J.Hutchins.</p>
+
+<p>The dataset used for this tutorial is available on the UCI Machine Learning Repository <a href="http://archive.ics.uci.edu/ml/datasets/CalIt2+Building+People+Counts">here.</a></p>
+
+<h1>
+<a id="when-and-why-should-i-use-a-markov-modulated-poisson-process" class="anchor" href="#when-and-why-should-i-use-a-markov-modulated-poisson-process" aria-hidden="true"><span class="octicon octicon-link"></span></a>When and why should I use a Markov-Modulated Poisson Process?</h1>
+
+<p>Time-series of count data occur in many different contexts.  A Markov-modulated Poisson process provides a framework for detecting anomalous events using an unsupervised learning approach and has several advantages compared to typical Poisson models.</p>
+
+<p>The following figure shows three weeks of entry count data recorded every 30 minutes by an optical sensor placed at the main doors of the <a href="http://www.calit2.uci.edu/calit2-building/default.aspx?cguid=7CE08025-DA82-4BF8-A57B-2F16D8C7592C">Calit2 Institute building</a> on the UC-Irvine campus. These observations are noisy time series with obvious structure which are corrupted by non-periodic events.  Some events, such as the large spike on the second Thursday in the plot below, may be obvious; others may only be noticeable when compared to the average behavior at given time over a long period.</p>
+
+<p><img src="assets/img/exit_count.png" alt="Plot of Entry Data"></p>
+
+<p>If your data is close to Poisson, the Markov-modulated Poisson process has several advantages over estimating a non-homogenous poisson process and detecting events by finding counts with low probability under the estimated model, $$P(N;\hat{\lambda}(t)) &lt; \epsilon$$</p>
+
+<ol>
+<li>The presence of outliers causes bias in the estimated rate of average behavior.</li>
+<li>Sustained events with slight changes may not be detected with a constant probability threshold.</li>
+<li>Difficulty in determining the duration of events.</li>
+</ol>
+
+<p>If you believe your data contains events which are relatively rare and interspersed among non-event observations and any event causes a dramatic change in activity, a simple non-homogeneous poisson process model will likely suffice.  Otherwise, the MMPP will likely perform significantly better in terms of detection accuracy.</p>
+
+<h1>
+<a id="poisson-processes" class="anchor" href="#poisson-processes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Poisson processes</h1>
+
+<p>If your data follows a Poisson process, the probability of observing $$N$$ events at any time is given by the following:  </p>
+
+<p>$$P(N;\lambda)=e^{-\lambda}\lambda^N/N!$$</p>
+
+<p>The population mean and variance are both equal to $$\lambda$$.  There are several goodness of fit tests available to test the Poisson distribution assumption.  However, given that the data may be contaminated by bursts of events and the fact that limited observations at each day-time slice may be a problem, a qualitative assessment of the suitability of the Poisson assumption is reasonable and can be obtained by examining the relationship between the mean and variance of observations.</p>
+
+<p><img src="assets/fig/unnamed-chunk-3.png" alt="Plot of chunk unnamed-chunk-1"></p>
+
+<p>The mean and variance plots indicate that after the removal of observations affected by events, the Poisson assumption seems reasonable.</p>
+
+<p>As motivation for the proposed model, consider the scatterplot of the number of individuals entering the building on any weekday as function of every 30-minute interval.  There is obvious periodic behavior as well as several patches of outliers.  However, in some cases it is not so obvious as to whether observations are due to an external event or just unusual noise.  In order to separate the these scenarios, Ihler et al. defined the model described in the next section.</p>
+
+<p><img src="assets/fig/img2.png" alt="Plot of chunk unnamed-chunk-2"></p>
+
+<h1>
+<a id="markov-modulated-poisson-process" class="anchor" href="#markov-modulated-poisson-process" aria-hidden="true"><span class="octicon octicon-link"></span></a>Markov-Modulated Poisson Process</h1>
+
+<p>The main assumption underlying the Markov-Modulated Poisson Process is that observed count at time t,  $$N(t)$$, is the sum of a baseline Poisson process $$N_0(t)$$ which corresponds to normal activity and a Poisson process corresponding $$N_E(t)$$ to external events.  That is,</p>
+
+<p>$$N(t) = N_0(t) + N_E(t)$$</p>
+
+<p>In order to model the predictable and periodic behavior seen in the above figure, the proposed model for $$N_0(t)$$ is a non-homogenous Poisson process with a particular parametrization of the rate function.</p>
+
+<p>$$\lambda(t) = \lambda_0 \delta_{d(t)} \eta_{d(t),h(t)}$$</p>
+
+<p>$$d(t) \in [1,2,3,4,5,6,7]$$ and $$h(t)$$ indicates the time interval $$t$$, such as every 30 minutes, etc.  The parameters $$\delta$$ and $$\eta$$ must meet the following criteria:</p>
+
+<p>$$\begin{align}
+\sum_{i=1}^N \delta_i &amp;= 7\
+\sum_{j=1}^D \eta_{i,j} &amp;= D\
+\end{align}$$</p>
+
+<p>Where D is the number of time intervals in one day (e.g. 24 for one hour intervals, 48 for 30 minute intervals)</p>
+
+<h1>
+<a id="modeling-rare-persistent-events" class="anchor" href="#modeling-rare-persistent-events" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modeling Rare, Persistent Events</h1>
+
+<p>To model the behavior of anomalous periods of time, we use a ternary process $$z(t)$$ to indicate the presence of an event and its type:</p>
+
+<p>$$z(t) =
+     \begin{array}{lr}
+        0 &amp; \textrm{no event at time t}\
+       +1 &amp; \textrm{positive event at time t}\
+       -1 &amp; \textrm{negative event at time t}\
+     \end{array}$$</p>
+
+<p>$$M_z =
+    \left( \begin{array}{ccc}
+        z_{00} &amp; z_{0+} &amp; z_{0-}\
+        z_{+0} &amp; z_{++} &amp; z_{+-}\
+        z_{-0} &amp; z_{-+} &amp; z_{--}\
+    \end{array} \right)$$</p>
+
+<p>The transition probability variables priors are specified as</p>
+
+<p>$$z_{00},z_{0+},z_{0-} \sim \textrm{Dir}(z; [a_{00}^Z,a_{0+}^Z,a_{0-}^Z])$$</p>
+
+<p>where Dir is the Dirichlet distribution and the $$a_{0\cdot}^Z$$ are hyperparameters.  Given an event $$z(t)\neq 1$$, the increase or decrease in observation counts, $$N_E(t)$$, is modeled as Poisson with rate $$\gamma (t)$$ where  $$\gamma (t)$$ is assumed to be independently distributed as the Gamma distribution with hyperparameters $$a^E$$ and $$b^E$$.</p>
+
+<p>$$\gamma (t) \sim \Gamma(\gamma;a^E,b^E)$$</p>
+
+<p>Markov modulated Poisson processes may be relatively sensitive to the selection of prior distributions and hence the choice of hyper-parameters.  However, given an idea of what constitutes a “rare” event, how often they occur, and the expected duration of such an event relatively strong priors can avoid over-explanation of the data.</p>
+
+<h1>
+<a id="estimation-of-the-model" class="anchor" href="#estimation-of-the-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Estimation of the model</h1>
+
+<p>The model is estimated via MCMC by iterating between drawing samples of the hidden variables and sampling the parameters given the complete data.</p>
+
+<p>Sampling the hidden variables given the parameters:</p>
+
+<p>Given $$\lambda (t)$$ and $$M_z$$, the event process $$z(t)$$ can be sampled using a variant of the Forward-Backward algorithm.  Given $$z(t)$$, $$N_0(t)$$ and $$N_e(t)$$ are determined through sampling their posterior distributions.</p>
+
+<p>Sampling the parameters given the complete data:  </p>
+
+<p>Leaving out details, the complete likelihood function for the model given by:</p>
+
+<p>$$\displaystyle \prod_t e^{\lambda(t)}\lambda(t)^{N_0(t)} \prod_t p(Z(t)|Z(t-1)) \prod_{Z(t)=1}NBin(N_E(t))$$</p>
+
+<p>Consider the first term of the likelihood function and by choosing conjugate prior distributions, the posterior distributions of $$\lambda_0$$, $$\delta$$, and $$\eta$$ are the same form with parameters given by sufficient statistics of the data.  The posterior distributions are as follows:</p>
+
+<p>$$\begin{align}
+\lambda_0 &amp;\sim \Gamma(\lambda ; a^L + S, b^L +T)\
+\frac{1}{7}[\delta_1, \dots, \delta_7] &amp;\sim Dir(\alpha_1^d+S_1, \dots,\alpha_7^d+S_7 )\
+\frac{1}{D}[\eta_{j,1}, \dots, \eta_{j,D}] &amp;\sim Dir(\alpha_1^h+S_{j,1}, \dots,\alpha_D^h+S_{j,D} )\
+\end{align}$$</p>
+
+<p>where</p>
+
+<p>$$\begin{align}
+S_{i,j} &amp;= \sum_{d(t)=j,h(t)=i} N_0(t)\
+S_k &amp;= \sum_i S_{j,i}\
+S &amp;= \sum_j S_j\
+T &amp;= 7DW\
+\end{align}$$</p>
+
+<p>In a similar fashion, the posterior distribution for the transition probabilities are obtained:</p>
+
+<p>$$[z_{00},z_{0+},z_{0-}] \sim Dir(z; a_{00}^Z+Z_{00},a_{0+}^Z+Z_{0=},a_{0-}^Z+Z_{0-})$$</p>
+
+<p>where $$Z_{0+}$$ is the total number of transitions where $$z(t)=0, z(t+1)=+1$$.</p>
+
+<h1>
+<a id="data-format" class="anchor" href="#data-format" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data format</h1>
+
+<p>In order to use the MMPP estimator, your data should be formatted as an R matrix where each column corresponds to one day’s worth of data.  Each row corresponds to one period during the day.</p>
+
+<p>If your data is a delimited text file with a <code>timestamp</code> column and an  <code>event-count</code> column, you can import it into an R data frame using <code>read.csv</code>.  Assuming the name of the resulting data frame is <code>data</code> and the columns are named <code>date</code> and <code>count</code>, the following command will create the matrix:</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">N</span><span class="pl-k">&lt;-</span><span class="pl-k">matrix</span>(<span class="pl-smi">data</span><span class="pl-k">$</span><span class="pl-smi">count</span>, <span class="pl-v">nrow</span> <span class="pl-k">=</span> <span class="pl-smi">D</span>, <span class="pl-v">ncol</span> <span class="pl-k">=</span> <span class="pl-smi">N</span>)</pre></div>
+
+<p>Here, <code>D</code> is the number of intervals per 24 hours and <code>N</code> is the total number of days in your dataset.</p>
+
+<h2>
+<a id="running-the-code" class="anchor" href="#running-the-code" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running The Code</h2>
+
+<h3>
+<a id="inputs" class="anchor" href="#inputs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Inputs</h3>
+
+<p>The inputs parameters are as follows:</p>
+
+<h4>
+<a id="n-the-count-data-matrix" class="anchor" href="#n-the-count-data-matrix" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>N</code>: The count data matrix</h4>
+
+<p>Example of seven days worth count data (counts indicate number of building entries per 30 minute interval)</p>
+
+<pre><code>##       [,1] [,2] [,3] [,4] [,5] [,6] [,7]
+##  [1,]    0    1    0    1    0    4    0
+##  [2,]    1    0    4    2    0    1    2
+##  [3,]    0    0    0    0    2    0    0
+##  [4,]    0    0    2    0    0    1    2
+##  [5,]    0    0    0    0    0    0    0
+##  [6,]    2    0    0    0    0    0    1
+##  [7,]    0    0    0    0    0    2    0
+##  [8,]    0    0    0    1    0    0    0
+##  [9,]    0    0    0    0    0    0    0
+## [10,]    0    0    0    0    2    0    0
+## [11,]    0    2    0    0    0    0    0
+## [12,]    0    2    3    0    0    0    0
+## [13,]    0    1    0    1    0    3    0
+## [14,]    0    1    1    0    0    0    0
+## [15,]    0    0    0    0    1    0    0
+## [16,]    2    0    0    0    0    0    0
+## [17,]    0    0    2    0    3    0    0
+## [18,]    0    2    6    0    2    3    0
+## [19,]    0    1    2    2    0    1    0
+## [20,]    1    5    2    1   11   15    0
+## [21,]    0    4    4    6    3   26    0
+## [22,]    0    9   18    7    7   13    0
+## [23,]    1    1    8   11    7    9    0
+## [24,]    0    7    9   14   14    6    0
+## [25,]    0   11    8   14   28   23    0
+## [26,]    0    4    6    6   21   12    0
+## [27,]    0    7   25   33   10   11    0
+## [28,]    0    3   12   24   19    3    1
+## [29,]    0   14   13    4   11    7    1
+## [30,]    0    7   12    6   12    4    0
+## [31,]    0   10   11   17    9    9    0
+## [32,]    0    6    4   15   14    5    2
+## [33,]    0   13    8    9    9    8    1
+## [34,]    0    8    4    7   10   20    0
+## [35,]    1    9   17   16    8    6    2
+## [36,]    2    3   10   13   14    3    1
+## [37,]    4    6    8    7   15    6    0
+## [38,]    1    5    6    2    4    4    0
+## [39,]    2    2    7    1    2    1    0
+## [40,]    1    5    1    1    0    0    1
+## [41,]    0    1    2    3    2    0    0
+## [42,]    0    3    0    2    0    1    0
+## [43,]    3    0    2    0    0    2    0
+## [44,]    2    0    0    1    0    1    0
+## [45,]    0    1    2    0    1    1    0
+## [46,]    0    2    0    0    0    5    1
+## [47,]    2    3    1    1    3    1    0
+## [48,]    0    3    0    2    0    3    0
+</code></pre>
+
+<h4>
+<a id="priors-a-list-containing-each-of-the-specified-prior-hyperparameters" class="anchor" href="#priors-a-list-containing-each-of-the-specified-prior-hyperparameters" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>priors</code>: A list containing each of the specified prior hyperparameters</h4>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">priors</span><span class="pl-k">&lt;-</span><span class="pl-k">list</span>()
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">aL</span><span class="pl-k">=</span><span class="pl-c1">1</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">bL</span><span class="pl-k">=</span><span class="pl-c1">1</span> <span class="pl-c">#lambda0, baseline rate</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">aD</span><span class="pl-k">=</span>rep(<span class="pl-c1">0</span>,<span class="pl-c1">1</span>,<span class="pl-c1">7</span>)<span class="pl-k">+</span><span class="pl-c1">5</span> <span class="pl-c">#day effect dirichlet params</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">aH</span><span class="pl-k">=</span><span class="pl-k">matrix</span>(<span class="pl-c1">0</span>,<span class="pl-v">nrow</span><span class="pl-k">=</span><span class="pl-c1">48</span>,<span class="pl-v">ncol</span><span class="pl-k">=</span><span class="pl-c1">7</span>)<span class="pl-k">+</span><span class="pl-c1">1</span> <span class="pl-c">#time of day effect dirichlet param</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z01</span><span class="pl-k">=</span>.<span class="pl-c1">01</span><span class="pl-k">*</span><span class="pl-c1">10000</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z00</span><span class="pl-k">=</span>.<span class="pl-c1">99</span><span class="pl-k">*</span><span class="pl-c1">10000</span>   <span class="pl-c">#z(t) event process</span>
+
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z01</span> <span class="pl-k">=</span> .<span class="pl-c1">01</span><span class="pl-k">*</span><span class="pl-c1">10000</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z00</span> <span class="pl-k">=</span> .<span class="pl-c1">99</span><span class="pl-k">*</span><span class="pl-c1">10000</span>;     <span class="pl-c"># z(t) event process</span>
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z10</span> <span class="pl-k">=</span> .<span class="pl-c1">25</span><span class="pl-k">*</span><span class="pl-c1">10000</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z11</span> <span class="pl-k">=</span> .<span class="pl-c1">75</span><span class="pl-k">*</span><span class="pl-c1">10000</span>;     
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">aE</span> <span class="pl-k">=</span> <span class="pl-c1">5</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">bE</span> <span class="pl-k">=</span> <span class="pl-c1">1</span><span class="pl-k">/</span><span class="pl-c1">3</span>;       <span class="pl-c"># gamma(t), or NBin, for event # process</span>
+
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">MODE</span> <span class="pl-k">=</span> <span class="pl-c1">0</span>;</pre></div>
+
+<h4>
+<a id="iter-a-list-containing-the-number-of-iterations-and-the-length-of-the-burn-in-period" class="anchor" href="#iter-a-list-containing-the-number-of-iterations-and-the-length-of-the-burn-in-period" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>ITER</code>: A list containing the number of iterations and the length of the burn-in period</h4>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">ITER</span> <span class="pl-k">&lt;-</span> c(<span class="pl-c1">50</span>, <span class="pl-c1">10</span>)</pre></div>
+
+<h4>
+<a id="events-matrix-containing-the-locations-of-known-events-used-for-verification" class="anchor" href="#events-matrix-containing-the-locations-of-known-events-used-for-verification" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>events</code>: Matrix containing the locations of known events (used for verification)</h4>
+
+<pre><code>##       [,1] [,2] [,3] [,4] [,5] [,6] [,7]
+##  [1,]    0    0    0    0    0    0    0
+##  [2,]    0    0    0    0    0    0    0
+##  [3,]    0    0    0    0    0    0    0
+##  [4,]    0    0    0    0    0    0    0
+##  [5,]    0    0    0    0    0    0    0
+##  [6,]    0    0    0    0    0    0    0
+##  [7,]    0    0    0    0    0    0    0
+##  [8,]    0    0    0    0    0    0    0
+##  [9,]    0    0    0    0    0    0    0
+## [10,]    0    0    0    0    0    0    0
+## [11,]    0    0    0    0    0    0    0
+## [12,]    0    0    0    0    0    0    0
+## [13,]    0    0    0    0    0    0    0
+## [14,]    0    0    0    0    0    0    0
+## [15,]    0    0    0    0    0    0    0
+## [16,]    0    0    0    0    0    1    0
+## [17,]    0    0    0    0    0    1    0
+## [18,]    0    0    0    0    0    1    0
+## [19,]    0    0    0    0    0    1    0
+## [20,]    0    0    0    0    0    1    0
+## [21,]    0    0    0    0    0    1    0
+## [22,]    0    0    1    0    0    1    0
+## [23,]    0    0    1    0    0    0    0
+## [24,]    0    0    1    0    0    0    0
+## [25,]    0    0    1    0    0    0    0
+## [26,]    0    0    1    0    0    0    0
+## [27,]    0    0    1    0    0    0    0
+## [28,]    0    0    1    0    0    0    0
+## [29,]    0    0    0    0    0    0    0
+## [30,]    0    0    0    0    0    0    0
+## [31,]    0    0    0    0    0    0    0
+## [32,]    0    0    0    0    0    0    0
+## [33,]    0    0    0    0    0    0    0
+## [34,]    0    0    0    0    0    0    0
+## [35,]    0    0    0    0    0    0    0
+## [36,]    0    0    0    0    0    0    0
+## [37,]    0    0    0    0    0    0    0
+## [38,]    0    0    0    0    0    0    0
+## [39,]    0    0    0    0    0    0    0
+## [40,]    0    0    0    0    0    0    0
+## [41,]    0    0    0    0    0    0    0
+## [42,]    0    0    0    0    0    0    0
+## [43,]    0    0    0    0    0    0    0
+## [44,]    0    0    0    0    0    0    0
+## [45,]    0    0    0    0    0    0    0
+## [46,]    0    0    0    0    0    0    0
+## [47,]    0    0    0    0    0    0    0
+## [48,]    0    0    0    0    0    0    0
+</code></pre>
+
+<h4>
+<a id="equiv-2-x-1-vector-containing-parameter-sharing-options" class="anchor" href="#equiv-2-x-1-vector-containing-parameter-sharing-options" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>EQUIV</code>: 2 x 1 vector containing parameter sharing options.</h4>
+
+<p>These parameters allow the day of week and time of day effects to be shared by certain days or times.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## EQUIV[1]&lt;-1 All days share total (per day) rate</span>
+<span class="pl-c">## EQUIV[1]&lt;-2 Weekend/weekdays share total (per day) rate</span>
+<span class="pl-c">## EQUIV[1]&lt;-3 Total (per day) rate unshared</span>
+
+<span class="pl-c">## EQUIV[2]&lt;-1 All days share time profile</span>
+<span class="pl-c">## EQUIV[2]&lt;-2 Weekend/weekdays share time profile</span>
+<span class="pl-c">## EQUIV[2]&lt;-3 Time profile unshared</span></pre></div>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">EQUIV</span> <span class="pl-k">&lt;-</span> c(<span class="pl-c1">3</span>, <span class="pl-c1">3</span>)</pre></div>
+
+<h3>
+<a id="execution" class="anchor" href="#execution" aria-hidden="true"><span class="octicon octicon-link"></span></a>Execution</h3>
+
+<p>The following code snippet reads the source code and estimates the MMPP model.  Note that the events matrix is not currently used in the code, but is a placeholder for future plotting features.</p>
+
+<pre><code>source("/your_directory_here/MMPP.R")
+samples &lt;- sensorMMPP(N, priors, c(50, 10, 1), events, c(3, 3))
+</code></pre>
+
+<h3>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Output</h3>
+
+<p>The output is a list containing the following multi-dimensional arrays:</p>
+
+<table>
+<thead>
+<tr>
+<th align="center">Name</th>
+<th align="right">Dimensions</th>
+<th align="left">Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">$$L$$</td>
+<td align="right">$$D \times T \times N$$</td>
+<td align="left">The values of $$\lambda$$ at each day - time slice for every iteration.</td>
+</tr>
+<tr>
+<td align="center">$$Z$$</td>
+<td align="right">$$D \times T \times N$$</td>
+<td align="left">The $$z=1$$ (event) or $$z=0$$ (no event) at each day - time slice for every iteration.  The average across all iterations gives us the probability of an event at specified day-time slice.</td>
+</tr>
+<tr>
+<td align="center">$$M$$</td>
+<td align="right">$$2 \times 2 \times N$$</td>
+<td align="left">The estimated transition probabilities for each iteration.</td>
+</tr>
+<tr>
+<td align="center">$$N_0$$</td>
+<td align="right">$$D \times T \times N$$</td>
+<td align="left">The estimated values of $$N_0(t)$$ for each iteration.</td>
+</tr>
+<tr>
+<td align="center">$$N_E$$</td>
+<td align="right">$$D \times T \times N$$</td>
+<td align="left">The estimated values of $$N_E(t)$$ for each iteration.</td>
+</tr>
+<tr>
+<td align="center">$$logp_NgLM$$</td>
+<td align="right">$$1 \times N$$</td>
+<td align="left">The log-likelihood of $$P(N | L,M)$$ for each iteration.</td>
+</tr>
+<tr>
+<td align="center">$$logp_NgLZ$$</td>
+<td align="right">$$1 \times N$$</td>
+<td align="left">The log-likelihood of $$P(N | L,Z)$$ for each iteration.</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-source-r"><pre>summary(<span class="pl-smi">samples</span>)
+
+<span class="pl-c">##           Length Class  Mode   </span>
+<span class="pl-c">## L         168000 -none- numeric</span>
+<span class="pl-c">## Z         168000 -none- numeric</span>
+<span class="pl-c">## M            200 -none- numeric</span>
+<span class="pl-c">## N0        168000 -none- numeric</span>
+<span class="pl-c">## NE        168000 -none- numeric</span>
+<span class="pl-c">## logp_NgLM     50 -none- numeric</span>
+<span class="pl-c">## logp_NgLZ     50 -none- numeric</span>
+<span class="pl-c">## logpC          1 -none- numeric</span>
+<span class="pl-c">## logpGD         1 -none- numeric</span></pre></div>
+
+<p>The following code averages the values of $$Z$$ across all iterations and flattens the matrix into three columns: observation, time of day, day, and probability of event.  The same code is applied to $$L$$ to obtain the average time profile of building entries/exits.</p>
+
+<div class="highlight highlight-source-r"><pre>library(<span class="pl-smi">reshape</span>)
+<span class="pl-smi">Z_mean</span><span class="pl-k">&lt;-</span>apply(<span class="pl-smi">samples</span><span class="pl-k">$</span><span class="pl-smi">Z</span>, c(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), <span class="pl-smi">mean</span>)
+<span class="pl-smi">Z_mean</span><span class="pl-k">&lt;-</span>melt(<span class="pl-smi">Z_mean</span>)
+<span class="pl-smi">L_mean</span><span class="pl-k">&lt;-</span>apply(<span class="pl-smi">samples</span><span class="pl-k">$</span><span class="pl-smi">L</span>,c(<span class="pl-c1">1</span>,<span class="pl-c1">2</span>),<span class="pl-smi">mean</span>)
+<span class="pl-smi">L_mean</span><span class="pl-k">&lt;-</span>melt(<span class="pl-smi">L_mean</span>)</pre></div>
+
+<p><img src="assets/fig/unnamed-chunk-2.png" alt="plot of chunk unnamed-chunk-2"></p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/giantoak">giantoak</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
