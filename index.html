@@ -3,10 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>MMPP Tutorial by giantoak</title>
+    <title>MMPP Tutorial by Giant Oak</title>
 
     <link rel="stylesheet" href="stylesheets/styles.css">
     <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
     <meta name="viewport" content="width=device-width">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -31,15 +32,12 @@
         <p>The following tutorial is based on three papers:</p>
 
 <ul>
-<li>
-<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.87.3348">Learning to Detect Events with Markov-Modulated Poisson Processes</a> by A. Ihler, J. Hutchins, and P. Smyth</li>
-<li>
-<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.26.8659">Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process</a> by S. Scott</li>
-<li>
-<a href="http://www.datalab.uci.edu/papers/ScottSmythV7.pdf">The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling</a> by S. Scott and P. Smyth.</li>
+<li><a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.87.3348">Learning to Detect Events with Markov-Modulated Poisson Processes</a> by A. Ihler, J. Hutchins, and P. Smyth</li>
+<li><a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.26.8659">Detecting Network Intrusion Using a Markov Modulated Nonhomogeneous Poisson Process</a> by S. Scott</li>
+<li><a href="http://www.datalab.uci.edu/papers/ScottSmythV7.pdf">The Markov Modulated Poisson Process and Markov Poisson Cascade with Applications to Web Traffic Modeling</a> by S. Scott and P. Smyth.</li>
 </ul>
 
-<p>This R-implementation is based on the Matlab code provided by J.Hutchins.</p>
+<p>This <a href="https://www.r-project.org/">R</a> implementation is based on the Matlab code provided by J.Hutchins.</p>
 
 <p>The dataset used for this tutorial is available on the UCI Machine Learning Repository <a href="http://archive.ics.uci.edu/ml/datasets/CalIt2+Building+People+Counts">here.</a></p>
 
@@ -52,7 +50,7 @@
 
 <p><img src="assets/img/exit_count.png" alt="Plot of Entry Data"></p>
 
-<p>If your data is close to Poisson, the Markov-modulated Poisson process has several advantages over estimating a non-homogenous poisson process and detecting events by finding counts with low probability under the estimated model, $$P(N;\hat{\lambda}(t)) &lt; \epsilon$$</p>
+<p>If your data is close to Poisson, the Markov-modulated Poisson process has several advantages over estimating a non-homogenous poisson process and detecting events by finding counts with low probability under the estimated model: $$P(N;\hat{\lambda}(t)) &lt; \epsilon$$</p>
 
 <ol>
 <li>The presence of outliers causes bias in the estimated rate of average behavior.</li>
@@ -65,11 +63,9 @@
 <h1>
 <a id="poisson-processes" class="anchor" href="#poisson-processes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Poisson processes</h1>
 
-<p>If your data follows a Poisson process, the probability of observing $$N$$ events at any time is given by the following:  </p>
+<p>If your data follows a Poisson process, the probability of observing \(N\) events at any time is given by the following: $$P(N;\lambda)=\frac{e^{-\lambda}\lambda^N}{N!}$$</p>
 
-<p>$$P(N;\lambda)=e^{-\lambda}\lambda^N/N!$$</p>
-
-<p>The population mean and variance are both equal to $$\lambda$$.  There are several goodness of fit tests available to test the Poisson distribution assumption.  However, given that the data may be contaminated by bursts of events and the fact that limited observations at each day-time slice may be a problem, a qualitative assessment of the suitability of the Poisson assumption is reasonable and can be obtained by examining the relationship between the mean and variance of observations.</p>
+<p>The population mean and variance are both equal to \(\lambda\).  There are several goodness of fit tests available to test the Poisson distribution assumption.  However, given that the data may be contaminated by bursts of events and the fact that limited observations at each day-time slice may be a problem, a qualitative assessment of the suitability of the Poisson assumption is reasonable and can be obtained by examining the relationship between the mean and variance of observations.</p>
 
 <p><img src="assets/fig/unnamed-chunk-3.png" alt="Plot of chunk unnamed-chunk-1"></p>
 
@@ -82,19 +78,13 @@
 <h1>
 <a id="markov-modulated-poisson-process" class="anchor" href="#markov-modulated-poisson-process" aria-hidden="true"><span class="octicon octicon-link"></span></a>Markov-Modulated Poisson Process</h1>
 
-<p>The main assumption underlying the Markov-Modulated Poisson Process is that observed count at time t,  $$N(t)$$, is the sum of a baseline Poisson process $$N_0(t)$$ which corresponds to normal activity and a Poisson process corresponding $$N_E(t)$$ to external events.  That is,</p>
+<p>The main assumption underlying the Markov-Modulated Poisson Process is that observed count at time t,  \(N(t)\), is the sum of a baseline Poisson process \(N_0(t)\) which corresponds to normal activity and a Poisson process corresponding \(N_E(t)\) to external events.  That is, \(N(t) = N_0(t) + N_E(t)\)</p>
 
-<p>$$N(t) = N_0(t) + N_E(t)$$</p>
+<p>In order to model the predictable and periodic behavior seen in the above figure, the proposed model for \(N_0(t)\) is a non-homogenous Poisson process with a particular parametrization of the rate function. $$\lambda(t) = \lambda_0 \delta_{d(t)} \eta_{d(t),h(t)}$$</p>
 
-<p>In order to model the predictable and periodic behavior seen in the above figure, the proposed model for $$N_0(t)$$ is a non-homogenous Poisson process with a particular parametrization of the rate function.</p>
-
-<p>$$\lambda(t) = \lambda_0 \delta_{d(t)} \eta_{d(t),h(t)}$$</p>
-
-<p>$$d(t) \in [1,2,3,4,5,6,7]$$ and $$h(t)$$ indicates the time interval $$t$$, such as every 30 minutes, etc.  The parameters $$\delta$$ and $$\eta$$ must meet the following criteria:</p>
-
-<p>$$\begin{align}
-\sum_{i=1}^N \delta_i &amp;= 7\
-\sum_{j=1}^D \eta_{i,j} &amp;= D\
+<p>\(d(t) \in [1,2,3,4,5,6,7]\) and \(h(t)\) indicates the time interval \(t\), such as every 30 minutes, etc.  The parameters \(\delta\) and \(\eta\) must meet the following criteria: $$\begin{align}
+\sum_{i=1}^N \delta_i &amp;= 7\newline
+\sum_{j=1}^D \eta_{i,j} &amp;= D\newline
 \end{align}$$</p>
 
 <p>Where D is the number of time intervals in one day (e.g. 24 for one hour intervals, 48 for 30 minute intervals)</p>
@@ -102,29 +92,23 @@
 <h1>
 <a id="modeling-rare-persistent-events" class="anchor" href="#modeling-rare-persistent-events" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modeling Rare, Persistent Events</h1>
 
-<p>To model the behavior of anomalous periods of time, we use a ternary process $$z(t)$$ to indicate the presence of an event and its type:</p>
-
-<p>$$z(t) =
+<p>To model the behavior of anomalous periods of time, we use a ternary process \(z(t)\) to indicate the presence of an event and its type:$$z(t) =
      \begin{array}{lr}
-        0 &amp; \textrm{no event at time t}\
-       +1 &amp; \textrm{positive event at time t}\
-       -1 &amp; \textrm{negative event at time t}\
+        0 &amp; \textrm{no event at time t}\newline
+       +1 &amp; \textrm{positive event at time t}\newline
+       -1 &amp; \textrm{negative event at time t}\newline
      \end{array}$$</p>
 
 <p>$$M_z =
     \left( \begin{array}{ccc}
-        z_{00} &amp; z_{0+} &amp; z_{0-}\
-        z_{+0} &amp; z_{++} &amp; z_{+-}\
-        z_{-0} &amp; z_{-+} &amp; z_{--}\
+        z_{00} &amp; z_{0+} &amp; z_{0-}\newline
+        z_{+0} &amp; z_{++} &amp; z_{+-}\newline
+        z_{-0} &amp; z_{-+} &amp; z_{--}\newline
     \end{array} \right)$$</p>
 
-<p>The transition probability variables priors are specified as</p>
+<p>The transition probability variables priors are specified as: $$z_{00},z_{0+},z_{0-} \sim \textrm{Dir}(z; [a_{00}^Z,a_{0+}^Z,a_{0-}^Z])$$</p>
 
-<p>$$z_{00},z_{0+},z_{0-} \sim \textrm{Dir}(z; [a_{00}^Z,a_{0+}^Z,a_{0-}^Z])$$</p>
-
-<p>where Dir is the Dirichlet distribution and the $$a_{0\cdot}^Z$$ are hyperparameters.  Given an event $$z(t)\neq 1$$, the increase or decrease in observation counts, $$N_E(t)$$, is modeled as Poisson with rate $$\gamma (t)$$ where  $$\gamma (t)$$ is assumed to be independently distributed as the Gamma distribution with hyperparameters $$a^E$$ and $$b^E$$.</p>
-
-<p>$$\gamma (t) \sim \Gamma(\gamma;a^E,b^E)$$</p>
+<p>where \(\textrm{Dir}\) is the Dirichlet distribution and \(a_{0\cdot}^Z\) are hyperparameters.  Given an event \(z(t)\neq 1\), the increase or decrease in observation counts, \(N_E(t)\), is modeled as Poisson with rate \(\gamma (t)\) where \(\gamma (t)\) is assumed to be independently distributed as the <a href="http://mathworld.wolfram.com/GammaDistribution.html">Gamma distribution</a> with hyperparameters \(a^E\) and \(b^E\): $$\gamma (t) \sim \Gamma(\gamma;a^E,b^E)$$</p>
 
 <p>Markov modulated Poisson processes may be relatively sensitive to the selection of prior distributions and hence the choice of hyper-parameters.  However, given an idea of what constitutes a “rare” event, how often they occur, and the expected duration of such an event relatively strong priors can avoid over-explanation of the data.</p>
 
@@ -135,36 +119,32 @@
 
 <p>Sampling the hidden variables given the parameters:</p>
 
-<p>Given $$\lambda (t)$$ and $$M_z$$, the event process $$z(t)$$ can be sampled using a variant of the Forward-Backward algorithm.  Given $$z(t)$$, $$N_0(t)$$ and $$N_e(t)$$ are determined through sampling their posterior distributions.</p>
+<p>Given \(\lambda (t)\) and \(M_z\), the event process \(z(t)\) can be sampled using a variant of the Forward-Backward algorithm.  Given \(z(t)\), \(N_0(t)\) and \(N_e(t)\) are determined through sampling their posterior distributions.</p>
 
 <p>Sampling the parameters given the complete data:  </p>
 
-<p>Leaving out details, the complete likelihood function for the model given by:</p>
+<p>Leaving out details, the complete likelihood function for the model given by: $$\displaystyle \prod_t e^{\lambda(t)}\lambda(t)^{N_0(t)} \prod_t p(Z(t)|Z(t-1)) \prod_{Z(t)=1}NBin(N_E(t))$$</p>
 
-<p>$$\displaystyle \prod_t e^{\lambda(t)}\lambda(t)^{N_0(t)} \prod_t p(Z(t)|Z(t-1)) \prod_{Z(t)=1}NBin(N_E(t))$$</p>
-
-<p>Consider the first term of the likelihood function and by choosing conjugate prior distributions, the posterior distributions of $$\lambda_0$$, $$\delta$$, and $$\eta$$ are the same form with parameters given by sufficient statistics of the data.  The posterior distributions are as follows:</p>
+<p>Consider the first term of the likelihood function and by choosing conjugate prior distributions, the posterior distributions of \(\lambda_0\), \(\delta\), and \(\eta\) are the same form with parameters given by sufficient statistics of the data.  The posterior distributions are as follows:</p>
 
 <p>$$\begin{align}
-\lambda_0 &amp;\sim \Gamma(\lambda ; a^L + S, b^L +T)\
-\frac{1}{7}[\delta_1, \dots, \delta_7] &amp;\sim Dir(\alpha_1^d+S_1, \dots,\alpha_7^d+S_7 )\
-\frac{1}{D}[\eta_{j,1}, \dots, \eta_{j,D}] &amp;\sim Dir(\alpha_1^h+S_{j,1}, \dots,\alpha_D^h+S_{j,D} )\
+\lambda_0 &amp;\sim \Gamma(\lambda ; a^L + S, b^L +T)\newline
+\frac{1}{7}[\delta_1, \dots, \delta_7] &amp;\sim Dir(\alpha_1^d+S_1, \dots,\alpha_7^d+S_7 )\newline
+\frac{1}{D}[\eta_{j,1}, \dots, \eta_{j,D}] &amp;\sim Dir(\alpha_1^h+S_{j,1}, \dots,\alpha_D^h+S_{j,D} )\newline
 \end{align}$$</p>
 
 <p>where</p>
 
 <p>$$\begin{align}
-S_{i,j} &amp;= \sum_{d(t)=j,h(t)=i} N_0(t)\
-S_k &amp;= \sum_i S_{j,i}\
-S &amp;= \sum_j S_j\
-T &amp;= 7DW\
+S_{i,j} &amp;= \sum_{d(t)=j,h(t)=i} N_0(t)\newline
+S_k &amp;= \sum_i S_{j,i}\newline
+S &amp;= \sum_j S_j\newline
+T &amp;= 7DW\newline
 \end{align}$$</p>
 
-<p>In a similar fashion, the posterior distribution for the transition probabilities are obtained:</p>
+<p>In a similar fashion, the posterior distribution for the transition probabilities are obtained: $$[z_{00},z_{0+},z_{0-}] \sim Dir(z; a_{00}^Z+Z_{00},a_{0+}^Z+Z_{0=},a_{0-}^Z+Z_{0-})$$</p>
 
-<p>$$[z_{00},z_{0+},z_{0-}] \sim Dir(z; a_{00}^Z+Z_{00},a_{0+}^Z+Z_{0=},a_{0-}^Z+Z_{0-})$$</p>
-
-<p>where $$Z_{0+}$$ is the total number of transitions where $$z(t)=0, z(t+1)=+1$$.</p>
+<p>where \(Z_{0+}\) is the total number of transitions where \(z(t)=0, z(t+1)=+1\).</p>
 
 <h1>
 <a id="data-format" class="anchor" href="#data-format" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data format</h1>
@@ -253,7 +233,7 @@ T &amp;= 7DW\
 <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z00</span><span class="pl-k">=</span>.<span class="pl-c1">99</span><span class="pl-k">*</span><span class="pl-c1">10000</span>   <span class="pl-c">#z(t) event process</span>
 
 <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z01</span> <span class="pl-k">=</span> .<span class="pl-c1">01</span><span class="pl-k">*</span><span class="pl-c1">10000</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z00</span> <span class="pl-k">=</span> .<span class="pl-c1">99</span><span class="pl-k">*</span><span class="pl-c1">10000</span>;     <span class="pl-c"># z(t) event process</span>
-<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z10</span> <span class="pl-k">=</span> .<span class="pl-c1">25</span><span class="pl-k">*</span><span class="pl-c1">10000</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z11</span> <span class="pl-k">=</span> .<span class="pl-c1">75</span><span class="pl-k">*</span><span class="pl-c1">10000</span>;     
+<span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z10</span> <span class="pl-k">=</span> .<span class="pl-c1">25</span><span class="pl-k">*</span><span class="pl-c1">10000</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">z11</span> <span class="pl-k">=</span> .<span class="pl-c1">75</span><span class="pl-k">*</span><span class="pl-c1">10000</span>;
 <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">aE</span> <span class="pl-k">=</span> <span class="pl-c1">5</span>; <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">bE</span> <span class="pl-k">=</span> <span class="pl-c1">1</span><span class="pl-k">/</span><span class="pl-c1">3</span>;       <span class="pl-c"># gamma(t), or NBin, for event # process</span>
 
 <span class="pl-smi">priors</span><span class="pl-k">$</span><span class="pl-v">MODE</span> <span class="pl-k">=</span> <span class="pl-c1">0</span>;</pre></div>
@@ -356,39 +336,39 @@ samples &lt;- sensorMMPP(N, priors, c(50, 10, 1), events, c(3, 3))
 </thead>
 <tbody>
 <tr>
-<td align="center">$$L$$</td>
-<td align="right">$$D \times T \times N$$</td>
-<td align="left">The values of $$\lambda$$ at each day - time slice for every iteration.</td>
+<td align="center">\(L\)</td>
+<td align="right">\(D \times T \times N\)</td>
+<td align="left">The values of \(\lambda\) at each day - time slice for every iteration.</td>
 </tr>
 <tr>
-<td align="center">$$Z$$</td>
-<td align="right">$$D \times T \times N$$</td>
-<td align="left">The $$z=1$$ (event) or $$z=0$$ (no event) at each day - time slice for every iteration.  The average across all iterations gives us the probability of an event at specified day-time slice.</td>
+<td align="center">\(Z\)</td>
+<td align="right">\(D \times T \times N\)</td>
+<td align="left">The \(z=1\) (event) or \(z=0\) (no event) at each day - time slice for every iteration.  The average across all iterations gives us the probability of an event at specified day-time slice.</td>
 </tr>
 <tr>
-<td align="center">$$M$$</td>
-<td align="right">$$2 \times 2 \times N$$</td>
+<td align="center">\(M\)</td>
+<td align="right">\(2 \times 2 \times N\)</td>
 <td align="left">The estimated transition probabilities for each iteration.</td>
 </tr>
 <tr>
-<td align="center">$$N_0$$</td>
-<td align="right">$$D \times T \times N$$</td>
-<td align="left">The estimated values of $$N_0(t)$$ for each iteration.</td>
+<td align="center">\(N_0\)</td>
+<td align="right">\(D \times T \times N\)</td>
+<td align="left">The estimated values of \(N_0(t)\) for each iteration.</td>
 </tr>
 <tr>
-<td align="center">$$N_E$$</td>
-<td align="right">$$D \times T \times N$$</td>
-<td align="left">The estimated values of $$N_E(t)$$ for each iteration.</td>
+<td align="center">\(N_E\)</td>
+<td align="right">\(D \times T \times N\)</td>
+<td align="left">The estimated values of \(N_E(t)\) for each iteration.</td>
 </tr>
 <tr>
-<td align="center">$$logp_NgLM$$</td>
-<td align="right">$$1 \times N$$</td>
-<td align="left">The log-likelihood of $$P(N | L,M)$$ for each iteration.</td>
+<td align="center">\(logp_NgLM\)</td>
+<td align="right">\(1 \times N\)</td>
+<td align="left">The log-likelihood of \(P(N | L,M)\) for each iteration.</td>
 </tr>
 <tr>
-<td align="center">$$logp_NgLZ$$</td>
-<td align="right">$$1 \times N$$</td>
-<td align="left">The log-likelihood of $$P(N | L,Z)$$ for each iteration.</td>
+<td align="center">\(logp_NgLZ\)</td>
+<td align="right">\(1 \times N\)</td>
+<td align="left">The log-likelihood of \(P(N | L,Z)\) for each iteration.</td>
 </tr>
 </tbody>
 </table>
@@ -406,7 +386,7 @@ samples &lt;- sensorMMPP(N, priors, c(50, 10, 1), events, c(3, 3))
 <span class="pl-c">## logpC          1 -none- numeric</span>
 <span class="pl-c">## logpGD         1 -none- numeric</span></pre></div>
 
-<p>The following code averages the values of $$Z$$ across all iterations and flattens the matrix into three columns: observation, time of day, day, and probability of event.  The same code is applied to $$L$$ to obtain the average time profile of building entries/exits.</p>
+<p>The following code averages the values of \(Z\) across all iterations and flattens the matrix into three columns: observation, time of day, day, and probability of event.  The same code is applied to \(L\) to obtain the average time profile of building entries/exits.</p>
 
 <div class="highlight highlight-source-r"><pre>library(<span class="pl-smi">reshape</span>)
 <span class="pl-smi">Z_mean</span><span class="pl-k">&lt;-</span>apply(<span class="pl-smi">samples</span><span class="pl-k">$</span><span class="pl-smi">Z</span>, c(<span class="pl-c1">1</span>, <span class="pl-c1">2</span>), <span class="pl-smi">mean</span>)
@@ -417,11 +397,13 @@ samples &lt;- sensorMMPP(N, priors, c(50, 10, 1), events, c(3, 3))
 <p><img src="assets/fig/unnamed-chunk-2.png" alt="plot of chunk unnamed-chunk-2"></p>
       </section>
       <footer>
-        <p>This project is maintained by <a href="https://github.com/giantoak">giantoak</a></p>
+        <p>Tutorial by W. Graham Mueller</p>
+        <p><a href="https://giantoak.github.io"><img src="assets/img/Giant_Oak_logo_v2B.jpg" width="180" height="240"></a></p>
+
         <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
       </footer>
     </div>
     <script src="javascripts/scale.fix.js"></script>
-    
+
   </body>
 </html>
