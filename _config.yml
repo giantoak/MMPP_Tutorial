@@ -1,0 +1,18 @@
+# Welcome to Jekyll!
+#
+# This config file is meant for settings that affect your whole blog, values
+# which you are expected to set up once and rarely need to edit after that.
+# For technical reasons, this file is *NOT* reloaded automatically when you use
+# 'jekyll serve'. If you change this file, please restart the server process.
+
+# Site settings
+title: Detecting Events with Markov Modulated Poisson Processes
+subtitle: <img src="assets/img/Giant_Oak_logo_v2B.jpg" width="180" height="240">
+email: peter.landwehr@giantoak.com
+description: A tutorial on Markov Modulated Poisson Processes and how to use them with the MMPP and mmppr libraries for R.
+github_username: giantoak
+twitter_username: Giant_Oak
+baseurl: /MMPP_tutorial
+
+# Build settings
+markdown: kramdown
